@@ -53,46 +53,6 @@
       },
       "action_name": "MyIngress.drop",
       "action_params": { }
-    },
-    {
-      "table": "MyIngress.stream_ops",
-      "match": {
-        "hdr.entry[0].schema": 0,
-        "meta.lineNo": 0
-      },
-      "action_name": "MyIngress.add",
-      "action_params": { 
-        "i": 1
-      }
-    },
-    {
-      "table": "MyIngress.stream_ops",
-      "match": {
-        "hdr.entry[0].schema": 0,
-        "meta.lineNo": 1
-      },
-      "action_name": "MyIngress.add",
-      "action_params": { 
-        "i": 1
-      }
-    },
-    {
-      "table": "MyIngress.stream_ops",
-      "match": {
-        "hdr.entry[0].schema": 1,
-        "meta.lineNo": 0
-      },
-      "action_name": "MyIngress.key_window_aggregate",
-      "action_params": { }
-    },
-    {
-      "table": "MyIngress.stream_ops",
-      "match": {
-        "hdr.entry[0].schema": 2,
-        "meta.lineNo": 0
-      },
-      "action_name": "MyIngress.join_sum",
-      "action_params": { }
     }
   ]
 }

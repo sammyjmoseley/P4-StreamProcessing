@@ -139,9 +139,27 @@ control MyIngress(inout headers hdr,
         default_action = drop();
     }
 
-    action add(bit<32> i) {
+    action map_add(bit<32> i) {
         hdr.entry[0].val = hdr.entry[0].val + i;
         meta.resubmit_invoked = true;
+    }
+
+    action map_eq(bit<32> i) {
+        if (hdr.entry[0].val == i) {
+            hdr.entry[0].val = 1;
+        } else {
+            hdr.entry[0].val = 0;
+        }
+
+        meta.resubmit_invoked = true;
+    }
+
+    action filter_eq(bit<32> i) {
+        if (hdr.entry[0].val == i)  {
+            meta.pop_front = 1;
+        } else {
+            meta.resubmit_invoked = true;
+        }
     }
 
     action key_window_aggregate() {
@@ -280,7 +298,9 @@ control MyIngress(inout headers hdr,
             meta.lineNo: exact;
         }
         actions = {
-            add;
+            map_add;
+            map_eq;
+            filter_eq;
             key_window_aggregate;
             join_sum;
             next_packet;
@@ -351,6 +371,10 @@ control MyIngress(inout headers hdr,
                 if (meta.pop_front == 1) {
                     hdr.entry.pop_front(1);
                     hdr.entry_count.count = hdr.entry_count.count - 1;
+
+                    if (hdr.entry_count.count == 0) {
+                        mark_to_drop();
+                    }
                 }
             }
         }
@@ -365,8 +389,10 @@ control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
     apply {
-        if (hdr.entry[0].isValid() && (meta.resubmit_invoked || meta.packet_no < meta.packet_size)) {
-            recirculate({standard_metadata, meta.lineNo, meta.join_idx});
+        if (hdr.entry[0].isValid()) {
+            if (meta.resubmit_invoked || meta.packet_no < meta.packet_size) {
+                recirculate({standard_metadata, meta.lineNo, meta.join_idx});
+            }
         }
 
     }
