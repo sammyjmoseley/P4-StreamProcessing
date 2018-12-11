@@ -6,8 +6,9 @@ import sys
 from time import sleep
 import json
 import networkx
+import traceback
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'utils/'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../utils/'))
 import run_exercise
 import p4runtime_lib.bmv2
 from p4runtime_lib.switch import ShutdownAllSwitchConnections
@@ -16,7 +17,8 @@ from query import Query
 from actions import *
 
 queries = []
-# queries.append(Query(1, [MapAdd(1)]))
+queries.append(Query(1, [MapAdd(1)]))
+
 
 def printGrpcError(e):
     """
@@ -25,14 +27,9 @@ def printGrpcError(e):
     :param e: the error object
     """
 
-    print
-    "gRPC Error:", e.details(),
-    status_code = e.code()
-    print
-    "(%s)" % status_code.name,
-    traceback = sys.exc_info()[2]
-    print
-    "[%s:%d]" % (traceback.tb_frame.f_code.co_filename, traceback.tb_lineno)
+    print("gRPC Error: %s" % str(e.details()))
+    # print("(%s)" % status_code.name, traceback=sys.exc_info()[2])
+    # print("[%s:%d]" % (traceback.tb_frame.f_code.co_filename, traceback.tb_lineno))
 
 
 def load_topology(topo_file_path):
@@ -83,16 +80,66 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
             print
             "Installed P4 Program using SetForwardingPipelineConfig on %s" % bmv2_switch.name
 
+        graph = networkx.Graph()
+        host_ipv4 = {}
+        host_mac = {}
+        host_dst_id = {}
+        dst_cnt = 1
+        for host in mn_topo.hosts():
+            print('added node: ' + host)
+            graph.add_node(host)
+            ip = tuple(mn_topo.nodeInfo(host)['ip'].split('/'))
+            host_mac[host] = mn_topo.nodeInfo(host)['mac']
+            host_ipv4[host] = (ip[0], int(ip[1]))
+            host_dst_id[host] = dst_cnt
+            dst_cnt += 1
+        for switch in mn_topo.switches():
+            print('added node: ' + switch)
+            graph.add_node(switch)
+        for link in mn_topo.links():
+            graph.add_edge(link[0], link[1])
+            graph.add_edge(link[1], link[0])
+
+        rules = []
+        for host_s in mn_topo.hosts():
+            host_s = str(host_s)
+            for host_d in mn_topo.hosts():
+                host_d = str(host_d)
+                if host_s == host_d:
+                    continue
+                print((host_s, host_d))
+                path = networkx.shortest_path(graph, host_s, host_d)
+                print(path)
+                for i in range(1, len(path) - 1):
+                    rule = (path[i], host_ipv4[host_d][0])
+                    if rule in rules:
+                        continue
+                    else:
+                        rules.append(rule)
+                    forward_entry = p4info_helper.buildTableEntry(
+                        table_name="MyIngress.ipv4_lpm",
+                        match_fields={
+                            "hdr.ipv4.dstAddr": [host_ipv4[host_d][0], 32]
+                        },
+                        action_name="MyIngress.ipv4_forward",
+                        action_params={
+                            "dstAddr": host_mac[host_d],
+                            "port": mn_topo.port(path[i], path[i + 1])[0]
+                        }
+                    )
+                    print("forwarding " + path[i] + " -> " + path[i + 1] + " for  dst " + host_d)
+                    switches[path[i]].WriteTableEntry(forward_entry)
+        print('here')
         for query in queries:
             for bmv2_switch in switches.values():
                 print('installing query')
-                query.install(bmv2_switch)
+                query.install(p4info_helper, bmv2_switch)
 
 
     except KeyboardInterrupt:
-        print
-        " Shutting down."
+        print(" Shutting down.")
     except grpc.RpcError as e:
+        print('here3')
         printGrpcError(e)
 
     ShutdownAllSwitchConnections()
@@ -127,3 +174,4 @@ if __name__ == '__main__':
         "\nTopology file not found: %s" % args.topo
         parser.exit(1)
     main(args.p4info, args.bmv2_json, args.topo)
+    print('here2')

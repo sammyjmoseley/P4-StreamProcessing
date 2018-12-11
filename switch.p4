@@ -157,8 +157,6 @@ control MyIngress(inout headers hdr,
     action filter_eq(bit<32> i) {
         if (hdr.entry[0].val == i)  {
             meta.pop_front = 1;
-        } else {
-            meta.resubmit_invoked = true;
         }
     }
 

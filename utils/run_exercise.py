@@ -126,7 +126,39 @@ class ExerciseTopo(Topo):
                 print "%d:%s\t" % (portno, node2),
             print
 
+def formatLatency(self, l):
+    """ Helper method for parsing link latencies from the topology json. """
+    if isinstance(l, (str, unicode)):
+        return l
+    else:
+        return str(l) + "ms"
 
+def parse_links(unparsed_links):
+    """ Given a list of links descriptions of the form [node1, node2, latency, bandwidth]
+    with the latency and bandwidth being optional, parses these descriptions
+    into dictionaries and store them as self.links
+    """
+    links = []
+    for link in unparsed_links:
+        # make sure each link's endpoints are ordered alphabetically
+        s, t, = link[0], link[1]
+        if s > t:
+            s,t = t,s
+            
+        link_dict = {'node1':s,
+                     'node2':t,
+                     'latency':'0ms',
+                     'bandwidth':None
+        }
+        if len(link) > 2:
+            link_dict['latency'] = self.formatLatency(link[2])
+        if len(link) > 3:
+            link_dict['bandwidth'] = link[3]
+        if link_dict['node1'][0] == 'h':
+            assert link_dict['node2'][0] == 's', 'Hosts should be connected to switches, not ' + str(link_dict['node2'])
+        links.append(link_dict)
+    return links
+        
 class ExerciseRunner:
     """
         Attributes:
@@ -149,14 +181,6 @@ class ExerciseRunner:
         if not self.quiet:
             print(' '.join(items))
 
-    def formatLatency(self, l):
-        """ Helper method for parsing link latencies from the topology json. """
-        if isinstance(l, (str, unicode)):
-            return l
-        else:
-            return str(l) + "ms"
-
-
     def __init__(self, topo_file, log_dir, pcap_dir,
                        switch_json, bmv2_exe='simple_switch', quiet=False):
         """ Initializes some attributes and reads the topology json. Does not
@@ -178,7 +202,7 @@ class ExerciseRunner:
             topo = json.load(f)
         self.hosts = topo['hosts']
         self.switches = topo['switches']
-        self.links = self.parse_links(topo['links'])
+        self.links = parse_links(topo['links'])
 
         # Ensure all the needed directories exist and are directories
         for dir_name in [log_dir, pcap_dir]:
@@ -212,35 +236,6 @@ class ExerciseRunner:
         self.do_net_cli()
         # stop right after the CLI is exited
         self.net.stop()
-
-
-    def parse_links(self, unparsed_links):
-        """ Given a list of links descriptions of the form [node1, node2, latency, bandwidth]
-            with the latency and bandwidth being optional, parses these descriptions
-            into dictionaries and store them as self.links
-        """
-        links = []
-        for link in unparsed_links:
-            # make sure each link's endpoints are ordered alphabetically
-            s, t, = link[0], link[1]
-            if s > t:
-                s,t = t,s
-
-            link_dict = {'node1':s,
-                        'node2':t,
-                        'latency':'0ms',
-                        'bandwidth':None
-                        }
-            if len(link) > 2:
-                link_dict['latency'] = self.formatLatency(link[2])
-            if len(link) > 3:
-                link_dict['bandwidth'] = link[3]
-
-            if link_dict['node1'][0] == 'h':
-                assert link_dict['node2'][0] == 's', 'Hosts should be connected to switches, not ' + str(link_dict['node2'])
-            links.append(link_dict)
-        return links
-
 
     def create_network(self):
         """ Create the mininet network object, and store it as self.net.

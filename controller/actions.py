@@ -1,19 +1,15 @@
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'utils/'))
-
-import p4runtime_lib.helper
-
 BASE_NAME = 'MyIngress'
 TABLE_NAME = '%s.stream_ops' % (BASE_NAME,)
 
 
 class Command(object):
-    def install(self, switch, schema, line_no):
-        switch.WriteTableEntry(self._to_table_entry(schema, line_no))
+    def install(self, p4info_helper, switch, schema, line_no):
+        switch.WriteTableEntry(self._to_table_entry(p4info_helper, schema, line_no))
 
-    def _to_table_entry(self, schema, line_no):
+    def _to_table_entry(self, p4info_helper, schema, line_no):
         return p4info_helper.buildTableEntry(
             table_name=TABLE_NAME,
             match_fields={

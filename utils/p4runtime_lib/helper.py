@@ -113,7 +113,6 @@ class P4InfoHelper(object):
             lpm.mask = encode(value[1], bitwidth)
         elif match_type == p4info_pb2.MatchField.RANGE:
             lpm = p4runtime_match.range
-            print("bitwidth: " + str(bitwidth))
             lpm.low = encode(value[0], bitwidth)
             lpm.high = encode(value[1], bitwidth)
         else:
