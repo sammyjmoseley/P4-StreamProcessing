@@ -139,8 +139,14 @@ control MyIngress(inout headers hdr,
         default_action = drop();
     }
 
+    action apply_f(out bit<32> c, bit<32> f, bit<32> a, bit<32> b) {
+        if (f == 1) {
+            c = a + b;
+        }
+    }
+
     action map_add(bit<32> i) {
-        hdr.entry[0].val = hdr.entry[0].val + i;
+        apply_f(hdr.entry[0].val, 1, hdr.entry[0].val, i);
         meta.resubmit_invoked = true;
     }
 
@@ -273,7 +279,7 @@ control MyIngress(inout headers hdr,
                 meta.new_entry_valid = 1;
                 meta.new_entry.schema = hdr.entry[0].schema;
                 meta.new_entry.key = key;
-                meta.new_entry.val = hst + hdr.entry[0].val;
+                apply_f(meta.new_entry.val, 1, hst, hdr.entry[0].val);
             }
             meta.join_idx = meta.join_idx + 1;
         }

@@ -16,8 +16,10 @@ import p4runtime_lib.helper
 from query import Query
 from actions import *
 
-queries = []
-queries.append(Query(1, [MapAdd(1)]))
+queries = [Query(0, [MapAdd(1), MapAdd(1)]),
+           Query(1, [KeyWindowAggregate()]),
+           Query(2, [JoinSum()]),
+           Query(3, [FilterEq(2)])]
 
 
 def printGrpcError(e):
@@ -129,7 +131,6 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
                     )
                     print("forwarding " + path[i] + " -> " + path[i + 1] + " for  dst " + host_d)
                     switches[path[i]].WriteTableEntry(forward_entry)
-        print('here')
         for query in queries:
             for bmv2_switch in switches.values():
                 print('installing query')
@@ -139,7 +140,6 @@ def main(p4info_file_path, bmv2_file_path, topo_file_path):
     except KeyboardInterrupt:
         print(" Shutting down.")
     except grpc.RpcError as e:
-        print('here3')
         printGrpcError(e)
 
     ShutdownAllSwitchConnections()
@@ -174,4 +174,3 @@ if __name__ == '__main__':
         "\nTopology file not found: %s" % args.topo
         parser.exit(1)
     main(args.p4info, args.bmv2_json, args.topo)
-    print('here2')
