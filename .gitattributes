@@ -1,3 +1,4 @@
+* linguist-vendored
 *.p4 linguist-vendored=false
 *.json linguist-vendored=false
-controller/*.py linguist-language=Python
+controller/*.py linguist-vendored=false
